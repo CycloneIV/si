@@ -18,7 +18,7 @@ module config_register #(
 	input 		[DATA_WIDTH-1:0] 	pwdata,
 	input 		[ADDR_WIDTH-1:0] 	paddr,
 
-	output 							pready,
+	output reg						pready,
 	output reg	[DATA_WIDTH-1:0] 	prdata,
 
 	output reg 	[SLV_NUM-1:0] 		way_en,
@@ -29,16 +29,18 @@ module config_register #(
 	wire 		apb_read;
 	wire 		apb_write;
 
-	assign apb_write = psel & penable & write;
-	assign apb_read  = psel & (~write);
+	assign apb_write = psel & penable & pwrite;
+	assign apb_read  = psel & (~pwrite);
 
 	always @(posedge pclk or negedge rst_b) begin
 		if (!rst_b) begin
 			prdata 	<= 32'd0;
 			way_en 	<= 3'd0;
 			qos_en 	<= 1'd0;
+			pready 	<= 1'd0;
 		end
 		else if (apb_write) begin
+			pready 	<= 1'd1;
 			case(paddr)
 				10'd0: 		qos_en 	<= pwdata[0];
 				10'd1: 		way_en 	<= pwdata[2:0];
@@ -49,11 +51,15 @@ module config_register #(
 			endcase
 		end
 		else if (apb_read) begin
+			pready 	<= 1'd1;
 			case(paddr)
 				10'd0: 		prdata	<= {31'b0,qos_en};
 				10'd1: 		prdata	<= {29'b0,way_en};
 				default: 	prdata 	<= prdata;
 			endcase
+		end
+		else begin
+			pready 	<= 1'd0;
 		end
 	end
 
